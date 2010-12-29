@@ -6,7 +6,7 @@ class ActiveRecord::Base
 
   def self.acts_as_superclass
 
-    if self.column_names.include?("subtype")
+    if self.column_names.include?("child_type")
       class << self
         alias_method :find_parent, :find
       end
@@ -42,15 +42,13 @@ class ActiveRecord::Base
   
   def self.inherits_from(parent_class_name)
     
-    set_primary_key "#{parent_class_name}_id"
-    has_one parent_class_name, :foreign_key => :id, :dependent => :destroy
+    has_one parent_class_name, :as => :child
 
     before_save :bind_tables
 
     # Bind parent and child tables
     define_method("bind_tables") do |*args|
       parent_class = send(parent_class_name)
-      parent_class.subtype = self.class.to_s if parent_class.attribute_names.include?("subtype")
       parent_class.save
       self["#{parent_class_name}_id"] = parent_class.id
       true
@@ -87,11 +85,7 @@ class ActiveRecord::Base
     inherited_methods = inherited_methods.reject { |c| self.reflections.map {|key, value| key.to_s }.include?(c) }
     inherited_columns.delete('id') if inherited_columns.include?('id')
     inherits = inherited_columns + inherited_methods
-    
-    # Create proxy getters and setters
-    define_method('id') { self["#{parent_class_name}_id"] }
-    define_method('id=') { |new_value| self["#{parent_class_name}_id"] = new_value }
-    
+        
     inherits.each do |name|
       define_method name do
         parent_class = send(parent_class_name)
