@@ -34,11 +34,11 @@ Example Configuration
     t.string :author
   end
 
-  create_cti_table :novel, :has_parent => :product do |t|
+  create_cti_table :novel, :has_parent => :book do |t|
     t.string :genre
   end
   
-  create_cti_table :encyclopedia, :has_parent => :product do |t|
+  create_cti_table :encyclopedia, :has_parent => :book do |t|
     t.string :editor
   end
   
