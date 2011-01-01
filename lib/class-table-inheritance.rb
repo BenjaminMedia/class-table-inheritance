@@ -5,71 +5,55 @@ class ActiveRecord::Base
   attr_reader :reflection
 
   def self.acts_as_superclass
-
     if self.column_names.include?("child_type")
+
       class << self
         alias_method :find_parent, :find
-      end
+      end 
       def self.find(*args)
-        super_classes = super
-        begin
-          if super_classes.kind_of? Array
-            super_classes.map do |item|
-              if !item.subtype.nil? && !item.subtype.blank?
-                inherits_type = Object.const_get(item.subtype.to_s)
-                inherits_type.send(:find, item.id)
-              else
-                super_classes
-              end
-            end
-          else
-            if !super_classes.subtype.nil? && !super_classes.subtype.blank?
-              inherits_type = Object.const_get(super_classes.subtype.to_s)
-              inherits_type.send(:find, *args)
-            else
-              super_classes
-            end
-          end
-        rescue
-          super_classes
+        objects = find_parent(*args)
+        objects = [objects] if !objects.kind_of? Array 
+        objects.map! do |obj|
+          child_class = Object.const_get(obj.child_type)
+          child_class.find(*args)
         end
+        objects.size>1 ? objects : objects.pop
       end
-
     end  
-
   end
 
   
   def self.inherits_from(parent_class_name)
-    
+  
     has_one parent_class_name, :as => :child
 
-    before_save :bind_tables
-
-    # Bind parent and child tables
-    define_method("bind_tables") do |*args|
-      parent_class = send(parent_class_name)
-      parent_class.save
-      self["#{parent_class_name}_id"] = parent_class.id
-      true
-    end
+    set_primary_key "#{parent_class_name}_id"
     
-    # Make a parent table
-    define_method(parent_class_name) do
-      if eval("#{parent_class_name}_id==nil")
-         send("build_#{parent_class_name}")
-      else
-         eval("#{parent_class_name.capitalize}.find_parent(#{parent_class_name}_id)")
-      end
+    # Fetch or build a parent instance
+    define_method(parent_class_name) do  
+      parent_id = "#{parent_class_name}_id"
+      @parent ||= send("build_#{parent_class_name}") unless eval(parent_id)
+      @parent ||= eval("#{parent_class_name.capitalize}.find_parent(#{parent_id})")     
     end
+
+    define_method('parent') do
+      send(parent_class_name)
+    end
+
+    before_save :save_parent
+
+    define_method("save_parent") do |*args|
+      parent.save
+      self["#{parent_class_name}_id"] = parent.id
+      true
+    end  
     
     validate :parent_valid
 
     # Assure parent is a valid class
     define_method("parent_valid") do
-      parent_class = send(parent_class_name)
-      unless valid = parent_class.valid?
-        parent_class.errors.each do |attr, message|
+      unless valid = parent.valid?
+        parent.errors.each do |attr, message|
           errors.add(attr, message)
         end
       end
@@ -79,24 +63,23 @@ class ActiveRecord::Base
     # Determine inherits from parent
     reflection = create_reflection(:has_one, parent_class_name, {}, self)
     parent_class = Object.const_get(reflection.class_name)
-    inherited_columns = parent_class.column_names
-    inherited_columns = inherited_columns.reject { |c| self.column_names.grep(c).length > 0 || c == "type" || c == "subtype"}
-    inherited_methods = parent_class.reflections.map { |key,value| key.to_s }
-    inherited_methods = inherited_methods.reject { |c| self.reflections.map {|key, value| key.to_s }.include?(c) }
-    inherited_columns.delete('id') if inherited_columns.include?('id')
-    inherits = inherited_columns + inherited_methods
+    columns = parent_class.column_names
+    columns = columns.reject { |c| self.column_names.grep(c).length > 0 || c == "child_type"}
+    methods = parent_class.reflections.map { |key,value| key.to_s }
+    methods = methods.reject { |c| self.reflections.map {|key, value| key.to_s }.include?(c) }
+    inherits = columns + methods
+    inherits.delete('id')
+    inherits.delete('parent')
         
     inherits.each do |name|
       define_method name do
-        parent_class = send(parent_class_name)
-        parent_class.send(name)
+        parent.send(name)
     	end
   	
     	define_method "#{name}=" do |new_value|
-        parent_class = send(parent_class_name)
-        parent_class.send("#{name}=", new_value)
+        parent.send("#{name}=", new_value)
     	end
     end
-  
+
   end
 end
