@@ -1,1 +1,2 @@
-require 'class-table-inheritance'
+require 'model'
+require 'migration'
