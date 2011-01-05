@@ -1,2 +1,1 @@
-require 'model'
-require 'migration'
+require 'cti'
