@@ -2,15 +2,16 @@ require 'active_record'
 
 class ActiveRecord::Base
   
-  attr_reader :reflection
   def self.has_children
+    puts "#{self.name} has children"
     class << self
+
       self.class.instance_variable_set(:@cti,true)
+
       alias_method :child_find_by_sql, :find_by_sql
       def find_by_sql(sql)
         objects = child_find_by_sql(sql)
         if self.class.instance_variable_get(:@cti)
-          puts "cti #{self.class.instance_variable_get(:@cti)}"
           objects.collect! do |obj|
             if obj.child_type
               child_class = Object.const_get(obj.child_type)
@@ -21,31 +22,39 @@ class ActiveRecord::Base
         end  
         objects
       end
+  
       def cti
         self.class.instance_variable_get(:@cti)
       end
+
       def cti=(value)
         self.class.instance_variable_set(:@cti,value)
       end
+
     end
   end
 
+  
   def self.has_parent(parent_class_name)
 
     has_one parent_class_name, :as => :child
 
     set_primary_key "#{parent_class_name}_id"
+
+    puts "#{self.name} has a parent: #{parent_class_name}"
     
     # Fetch or build a parent instance
     define_method(parent_class_name) do  
-      parent_id = "#{parent_class_name}_id"
-      @parent ||= send("build_#{parent_class_name}") unless eval(parent_id)
-      if !@parent
-        eval("#{parent_class_name.capitalize}.cti=false")     
-        @parent ||= eval("#{parent_class_name.capitalize}.find(#{parent_id})")     
-        eval("#{parent_class_name.capitalize}.cti=true")
+      if !@parent 
+        parent_id = send("#{parent_class_name}_id")
+        if parent_id
+          model_name = eval(parent_class_name.capitalize)
+          model_name.cti = false     
+          @parent = model_name.find(parent_id)     
+          model_name.cti = true     
+        end
       end  
-      @parent
+      @parent ||= send("build_#{parent_class_name}")
     end
 
     define_method('parent') do
@@ -73,19 +82,14 @@ class ActiveRecord::Base
     end    
 
     # Determine and save parent class
-    reflection = create_reflection(:has_one, parent_class_name, {}, self)
-    parent_class = Object.const_get(reflection.class_name)
+    parent_class = Object.const_get(parent_class_name.capitalize)
     self.instance_variable_set(:@parent_class,parent_class) 
 
-    # Determine inherits from parent
-    columns = parent_class.column_names.reject { |c| self.column_names.grep(c).length > 0 || c == "child_type"}
-    methods = parent_class.reflections.map { |key,value| key.to_s }
-    methods = methods.reject { |c| self.reflections.map {|key, value| key.to_s }.include?(c) }
-    inherits = columns + methods
-    inherits.delete('id')
-    inherits.delete('parent')
-        
-    inherits.each do |name|
+    puts "#{self.name} inherited data from #{parent_class_name}"    
+    columns = parent_class.column_names.reject { |c| self.column_names.include?(c) }
+    ['id', 'child_type', 'child_id'].each { |c| columns.delete(c) }
+    columns.each do |name|
+      puts "--#{name}"
       define_method name do
         parent.send(name)
       end	
@@ -94,9 +98,21 @@ class ActiveRecord::Base
     	end
     end
 
-    # Inherit constants
-    constants = parent_class.constants.reject { |c| self.constants.grep(c).length > 0}
+    puts "#{self.name} inherited methods from #{parent_class_name}"    
+    methods = parent_class.public_instance_methods.reject { |m| self.public_instance_methods.include?(m) }
+    methods.reject! { |name| name=~/^_/ }
+    methods.each do |name|
+      puts "--#{name}"
+      define_method name do |*args|
+        puts "forwarding method call #{name}" 
+        parent.send(name,*args)
+      end	
+    end
+
+    puts "#{self.name} inherited constants from #{parent_class_name}"    
+    constants = parent_class.constants.reject { |c| self.constants.include?(c)}
     constants.each do |name|
+      puts "--#{name}"
       const_set(name,parent_class.const_get(name))
     end
     
@@ -106,10 +122,15 @@ class ActiveRecord::Base
         begin
           child_find(*args)
         rescue
-          @parent_class.find(*args) if @parent_class
+          if @parent_class
+            @parent_class.cti = false     
+            @parent_class.find(*args)
+            @parent_class.cti = true     
+          end
         end
       end
-    end        
+    end
+    
   end
   
 end
@@ -144,21 +165,6 @@ class ActiveRecord::Relation
       child_last(*args)
     end
   end
-
-  # alias_method :child_to_a, :to_a
-  # def to_a
-  #   begin
-  #     child_to_a
-  #   rescue
-  #     klass = @klass.instance_variable_get(:@parent_class)
-  #     if klass
-  #       @klass = klass
-  #       @table = klass.arel_table
-  #     end
-  #     child_to_a
-  #   end
-  # end
-  # 
 
   alias_method :child_find, :find
   def find(*args)

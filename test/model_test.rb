@@ -7,7 +7,6 @@ class TestModel < MiniTest::Unit::TestCase
       return if defined?(@@db) && @@db
       @@db = true
 
-      puts "DB Setup"
       db_name = 'test/test.db'
       system("rm -f #{db_name}")
       SQLite3::Database.new(db_name)
@@ -25,24 +24,67 @@ class TestModel < MiniTest::Unit::TestCase
       end
     end
     
+    def create_product
+      Product.create(:title=>'GI Joe Action figure', :price=>24.99)
+    end
+                            
+    def create_book
+      Book.create(:title=>'War and Peace', :price=>8.50, :page_count=>700)
+    end
+
+    def create_novel
+      Novel.create(:title=>'Neuromancer', :price=>5.00, :page_count=>250)
+    end
+    
     def test_create_parent
-      pp obj = Product.create(:title=>'GI Joe Action figure',
-                           :price=>24.99)
-      assert_equal obj.class.name, 'Product'
+      assert_equal create_product.class.name, 'Product'
     end
-
+    
     def test_create_child
-      pp obj = Book.create(:title=>'War and Peace',
-                        :price=>8.50,
-                        :page_count=>700)
-      assert_equal obj.class.name, 'Book'
+      assert_equal create_book.class.name, 'Book'
     end
 
-    def test_create_grandchild
-      pp obj = Novel.create(:title=>'Neuromancer',
-                        :price=>5.25,
-                        :page_count=>250)
-      assert_equal obj.class.name, 'Novel'
+    def test_create_grand_child
+      assert_equal create_novel.class.name, 'Novel'
+    end
+    
+    def test_parent_attribute
+       obj = create_book
+       assert_equal obj.class.name, 'Book'
+       assert_equal obj.title, 'War and Peace'
+    end
+
+    def test_grand_parent_attribute
+       obj = create_novel
+       assert_equal obj.class.name, 'Novel'
+       assert_equal obj.title, 'Neuromancer'
+    end
+
+    def test_find_first
+      create_product
+      assert_equal Product.first.class.name, 'Product'
+      create_book
+      assert_equal Book.first.class.name, 'Book'
+      create_novel
+      assert_equal Novel.first.class.name, 'Novel'
+    end
+    
+    def test_find_last
+      create_product
+      assert_equal Product.last.class.name, 'Product'
+      create_book
+      assert_equal Book.last.class.name, 'Book'
+      create_novel
+      assert_equal Novel.last.class.name, 'Novel'
+    end
+    
+    def test_find_via_parent
+      create_book
+      create_novel
+      assert_equal Product.first.class.name, 'Book'
+      assert_equal Product.last.class.name, 'Novel'
+      assert_equal Book.first.class.name, 'Book'
+      assert_equal Book.last.class.name, 'Novel'
     end
 
   
