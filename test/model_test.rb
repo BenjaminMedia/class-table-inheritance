@@ -33,7 +33,7 @@ class TestModel < MiniTest::Unit::TestCase
     end
 
     def create_novel
-      Novel.create(:title=>'Neuromancer', :price=>5.00, :page_count=>250)
+      Novel.create(:title=>'Neuromancer', :price=>5.00, :page_count=>250, :chapter_count=>12)
     end
     
     def test_create_parent
@@ -78,6 +78,15 @@ class TestModel < MiniTest::Unit::TestCase
       assert_equal Novel.last.class.name, 'Novel'
     end
     
+    def test_find_all
+      create_product
+      create_book
+      create_novel
+      assert_equal 3, Product.all.size
+      assert_equal 2, Book.all.size
+      assert_equal 1, Novel.all.size
+    end
+
     def test_find_via_parent
       create_book
       create_novel
@@ -87,6 +96,66 @@ class TestModel < MiniTest::Unit::TestCase
       assert_equal Book.last.class.name, 'Novel'
     end
 
-  
-  
+    def test_find_by_id
+      p = create_product
+      b = create_book
+      n = create_novel
+      assert_equal p, Product.find(p.id)
+      assert_equal b, Product.find(b.id)
+      assert_equal n, Product.find(n.id)
+      assert_equal p, Product.find_by_id(p.id)
+      assert_equal b, Product.find_by_id(b.id)
+      assert_equal n, Product.find_by_id(n.id)
+      assert_equal [p,b,n], Product.find(p.id,b.id,n.id)
+    end
+       
+    def test_find_by_inherited_attribute
+      skip "This is broken"
+      p = create_product
+      b = create_book
+      n = create_novel
+      assert_equal n, Product.find_by_title('Neuromancer')
+      assert_equal n, Book.find_by_title('Neuromancer')
+      assert_equal n, Novel.find_by_title('Neuromancer')
+    end  
+
+    def test_where
+      skip "This is broken"
+      p = create_product
+      b = create_book
+      n = create_novel
+
+      assert_raises(ActiveRecord::StatementInvalid) { Product.where(:rating=>5).first }
+
+      assert_equal n, Product.where(:title=>'Neuromancer').first
+      assert_equal n, Book.where(:title=>'Neuromancer').first
+      assert_equal n, Novel.where(:title=>'Neuromancer').first
+      
+      assert_raises(ActiveRecord::StatementInvalid) { Product.where(:page_count=>250).first }
+      assert_equal n, Book.where(:page_count=>250).first
+      assert_equal n, Novel.where(:page_count=>250).first    
+
+      assert_raises(ActiveRecord::StatementInvalid) { Product.where(:chapter_count=>12).first }
+      assert_raises(ActiveRecord::StatementInvalid) { Book.where(:chapter_count=>12).first }
+      assert_equal n, Novel.where(:chapter_count=>12).first      
+    end  
+
+    def test_limit
+      p = create_product
+      b = create_book
+      n = create_novel
+      assert_equal 1, Product.limit(1).all.size
+      assert_equal 2, Product.limit(2).all.size
+      assert_equal 3, Product.limit(3).all.size
+    end
+   
+    def test_offset
+      p = create_product
+      b = create_book
+      n = create_novel
+      assert_equal p, Product.offset(0).first
+      assert_equal b, Product.offset(1).first
+      assert_equal n, Product.offset(2).first
+    end
+    
   end
