@@ -86,8 +86,12 @@ class ActiveRecord::Base
     self.instance_variable_set(:@parent_class,parent_class) 
 
     puts "#{self.name} inherited data from #{parent_class_name}"    
-    columns = parent_class.column_names.reject { |c| self.column_names.include?(c) }
-    ['id', 'child_type', 'child_id'].each { |c| columns.delete(c) }
+    begin
+      columns = parent_class.column_names.reject { |c| self.column_names.include?(c) }
+      ['id', 'child_type', 'child_id'].each { |c| columns.delete(c) }
+    rescue
+      columns = []
+    end
     columns.each do |name|
       puts "--#{name}"
       define_method name do
@@ -146,7 +150,9 @@ class ActiveRecord::Relation
       klass = @klass.instance_variable_get(:@parent_class)
       if klass
         @klass = klass
-        @table = klass.arel_table
+        @arel_table = @table = klass.arel_table 
+        @arel_engine = klass.arel_engine
+        @table_name = klass.table_name
       end
       child_first(*args)
     end
@@ -160,7 +166,9 @@ class ActiveRecord::Relation
       klass = @klass.instance_variable_get(:@parent_class)
       if klass
         @klass = klass
-        @table = klass.arel_table
+        @arel_table = @table = klass.arel_table 
+        @arel_engine = klass.arel_engine
+        @table_name = klass.table_name
       end
       child_last(*args)
     end
@@ -174,7 +182,9 @@ class ActiveRecord::Relation
       klass = @klass.instance_variable_get(:@parent_class)
       if klass
         @klass = klass
-        @table = klass.arel_table
+        @arel_table = @table = klass.arel_table 
+        @arel_engine = klass.arel_engine
+        @table_name = klass.table_name
       end
       child_find(*args)
     end
