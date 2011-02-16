@@ -79,7 +79,14 @@ class ActiveRecord::Base
         end
       end
       valid
-    end    
+    end
+    
+    after_destroy :destroy_parent
+    
+    define_method("destroy_parent") do
+      parent.destroy
+      true
+    end
 
     # Determine and save parent class
     parent_class = Object.const_get(parent_class_name.to_s.capitalize)
