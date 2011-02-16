@@ -48,7 +48,7 @@ class ActiveRecord::Base
       if !@parent 
         parent_id = send("#{parent_class_name}_id")
         if parent_id
-          model_name = eval(parent_class_name.capitalize)
+          model_name = eval(parent_class_name.to_s.capitalize)
           model_name.cti = false     
           @parent = model_name.find(parent_id)     
           model_name.cti = true     
@@ -82,7 +82,7 @@ class ActiveRecord::Base
     end    
 
     # Determine and save parent class
-    parent_class = Object.const_get(parent_class_name.capitalize)
+    parent_class = Object.const_get(parent_class_name.to_s.capitalize)
     self.instance_variable_set(:@parent_class,parent_class) 
 
     puts "#{self.name} inherited data from #{parent_class_name}"    
