@@ -3,7 +3,7 @@ require 'active_record'
 class ActiveRecord::Base
   
   def self.has_children
-    puts "#{self.name} has children"
+    #puts "#{self.name} has children"
     class << self
 
       self.class.instance_variable_set(:@cti,true)
@@ -41,7 +41,7 @@ class ActiveRecord::Base
 
     set_primary_key "#{parent_class_name}_id"
 
-    puts "#{self.name} has a parent: #{parent_class_name}"
+    #puts "#{self.name} has a parent: #{parent_class_name}"
     
     # Fetch or build a parent instance
     define_method(parent_class_name) do  
@@ -92,7 +92,7 @@ class ActiveRecord::Base
     parent_class = Object.const_get(parent_class_name.to_s.capitalize)
     self.instance_variable_set(:@parent_class,parent_class) 
 
-    puts "#{self.name} inherited data from #{parent_class_name}"    
+    #puts "#{self.name} inherited data from #{parent_class_name}"    
     begin
       columns = parent_class.column_names.reject { |c| self.column_names.include?(c) }
       ['id', 'child_type', 'child_id'].each { |c| columns.delete(c) }
@@ -100,7 +100,7 @@ class ActiveRecord::Base
       columns = []
     end
     columns.each do |name|
-      puts "--#{name}"
+      #puts "--#{name}"
       define_method name do
         parent.send(name)
       end	
@@ -109,21 +109,21 @@ class ActiveRecord::Base
     	end
     end
 
-    puts "#{self.name} inherited methods from #{parent_class_name}"    
+    #puts "#{self.name} inherited methods from #{parent_class_name}"    
     methods = parent_class.public_instance_methods.reject { |m| self.public_instance_methods.include?(m) }
     methods.reject! { |name| name=~/^_/ }
     methods.each do |name|
-      puts "--#{name}"
+      #puts "--#{name}"
       define_method name do |*args|
-        puts "forwarding method call #{name}" 
+        #puts "forwarding method call #{name}" 
         parent.send(name,*args)
       end	
     end
 
-    puts "#{self.name} inherited constants from #{parent_class_name}"    
+    #puts "#{self.name} inherited constants from #{parent_class_name}"    
     constants = parent_class.constants.reject { |c| self.constants.include?(c)}
     constants.each do |name|
-      puts "--#{name}"
+      #puts "--#{name}"
       const_set(name,parent_class.const_get(name))
     end
     
